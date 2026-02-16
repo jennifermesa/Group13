@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Wishlist, User
+from .models import Wishlist, User, Book
 
 
 @csrf_exempt
@@ -31,4 +31,23 @@ def create_wishlist(request):
         {"message": "Wishlist created", "wishlistId": wishlist.id},
         status=201
     )
+
+def books_by_genre(request, genre):
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    books = Book.objects.filter(genre__iexact=genre)
+
+    data = [
+        {
+            "isbn": b.isbn,
+            "title": b.title,
+            "genre": b.genre,
+            "price": float(b.price) if b.price is not None else None,
+        }
+        for b in books
+    ]
+
+    return JsonResponse(data, safe=False)
+
 
