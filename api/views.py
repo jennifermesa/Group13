@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Wishlist, User, Book
+from .models import Wishlist, User, Book, CartItem
 
 
 @csrf_exempt
@@ -59,5 +59,44 @@ def books_by_genre(request, genre):
     ]
 
     return JsonResponse(data, safe=False)
+
+@csrf_exempt
+def add_to_cart(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    data = json.loads(request.body or "{}")
+
+    user_id = data.get("userId")
+    book_id = data.get("bookId")
+    qty = data.get("quantity")
+
+    if not user_id or not book_id or not qty:
+        return JsonResponse({"error": "need userId bookId quantity"}, status=400)
+
+    user = User.objects.get(id=user_id)
+    book = Book.objects.get(id=book_id)
+
+    item = CartItem.objects.create(user=user, book=book, quantity=qty)
+
+    return JsonResponse({"success": True, "cartItemId": item.id}, status=201)
+
+@csrf_exempt
+def add_book(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    data = json.loads(request.body or "{}")
+
+    isbn = data.get("isbn")
+    title = data.get("title")
+    genre = data.get("genre")
+    price = data.get("price")
+
+    if not isbn or not title or not genre:
+        return JsonResponse({"error": "need isbn title genre"}, status=400)
+
+    book = Book.objects.create(isbn=isbn, title=title, genre=genre, price=price)
+    return JsonResponse({"success": True, "id": book.id}, status=201)
 
 
