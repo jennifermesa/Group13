@@ -22,5 +22,10 @@ class Book(models.Model):
     genre = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
 
+class CartItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+
     def __str__(self):
-        return self.title
+        return "cart item"
