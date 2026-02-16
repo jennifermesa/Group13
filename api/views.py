@@ -31,4 +31,14 @@ def create_wishlist(request):
         {"message": "Wishlist created", "wishlistId": wishlist.id},
         status=201
     )
+    
+@csrf_exempt
+def create_user(request):
+    data = json.loads(request.body)
+    user = User.objects.create(
+        username=data['username'],
+        password=data['password'],
+        email=data['email']
+    )
+    return JsonResponse({'success': True, 'id': user.id})
 
