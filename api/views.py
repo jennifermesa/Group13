@@ -99,4 +99,94 @@ def add_book(request):
     book = Book.objects.create(isbn=isbn, title=title, genre=genre, price=price)
     return JsonResponse({"success": True, "id": book.id}, status=201)
 
+@csrf_exempt
+def top_sellers(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
 
+    books = Book.objects.order_by('-copies_sold')[:10]
+
+    data = [
+        {
+            "isbn": b.isbn,
+            "title": b.title,
+            "genre": b.genre,
+            "price": float(b.price) if b.price is not None else None,
+            "publisher": b.publisher,
+            "copies_sold": b.copies_sold,
+        }
+        for b in books
+    ]
+
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+def books_by_rating(request, minRating):
+    if request.method != "GET":
+        return JsonResponse({"error":"GET only"}, status =405)
+    
+    try:
+        min_rating = float(minRating)
+    except ValueError:
+        return JsonResponse({"error":"Invalid rating value"}, status = 400)
+    
+    books = Book.objects.filter(rating__gte = min_rating)
+
+    data = [
+        {
+            "isbn": b.isbn,
+            "title": b.title,
+            "genre": b.genre,
+            "price": float(b.price) if b.price is not None else None,
+            "rating": b.rating,
+        }
+        for b in books
+    ]
+
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+def discount_books(request):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "PATCH only"}, status = 405)
+    
+    try:
+        data = json.loads(request.body or "{}")
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status= 400)
+    
+    publisher = data.get("publisher")
+    discount_percent = data.get("discountPercent")
+
+    if publisher is None or discount_percent is None:
+        return JsonResponse({"error":"publisher and discountPercent required"}, status =400)
+    
+    try:
+        discount_percent = float(discount_percent)
+    except ValueError:
+        return JsonResponse({"error": "discountPercent must be numeric"}, status=400)
+    
+    books = Book.objects.filter(publisher=publisher)
+
+    updated =[]
+
+    for book in books:
+        if book.price is not None:
+            old_price = float(book.price)
+            new_price = old_price * (1 - discount_percent / 100)
+            book.price = round(new_price, 2)
+            book.save()
+
+            updated.append({
+                "isbn": book.isbn,
+                "title": book.title,
+                "old_price": old_price,
+                "new_price": float(book.price)
+            })
+
+    return JsonResponse({
+        "publisher": publisher,
+        "discountPercent": discount_percent,
+        "updated_books": updated
+    })
