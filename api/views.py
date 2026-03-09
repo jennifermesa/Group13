@@ -99,4 +99,62 @@ def add_book(request):
     book = Book.objects.create(isbn=isbn, title=title, genre=genre, price=price)
     return JsonResponse({"success": True, "id": book.id}, status=201)
 
+def get_cart_items(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
 
+    items = CartItem.objects.filter(user_id=userId)
+
+    data = []
+    for item in items:
+        data.append({
+            "bookId": item.book.id,
+            "title": item.book.title,
+            "price": float(item.book.price) if item.book.price is not None else None,
+            "quantity": item.quantity
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+def get_cart_subtotal(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    items = CartItem.objects.filter(user_id=userId)
+
+    subtotal = 0
+    for item in items:
+        if item.book.price is not None:
+            subtotal += float(item.book.price) * item.quantity
+
+    return JsonResponse({
+        "userId": userId,
+        "subtotal": subtotal
+    })
+
+
+@csrf_exempt
+def remove_from_cart(request):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE only"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    user_id = data.get("userId")
+    book_id = data.get("bookId")
+
+    if not user_id or not book_id:
+        return JsonResponse({"error": "need userId and bookId"}, status=400)
+
+    try:
+        item = CartItem.objects.get(user_id=user_id, book_id=book_id)
+    except CartItem.DoesNotExist:
+        return JsonResponse({"error": "Cart item not found"}, status=404)
+
+    item.delete()
+
+    return JsonResponse({"success": True, "message": "Item removed from cart"})
