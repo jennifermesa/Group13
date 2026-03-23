@@ -11,6 +11,7 @@ urlpatterns = [
     path("books/top-sellers/", views.top_sellers, name="top_sellers"),
     path("books/rating/<str:minRating>/", views.books_by_rating, name="books_by_rating"),
     path("books/discount/", views.discount_books, name="discount_books"),
+    path("books/genre/<str:genre>/", views.books_by_genre, name="books_by_genre"),
     path("comments/create/", views.create_comment, name="create_comment"),
     path("books/<int:book_id>/comments/", views.get_book_comments, name="get_book_comments"),
     path("books/<int:book_id>/average-rating/", views.get_average_rating, name="average_rating"),
