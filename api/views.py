@@ -371,3 +371,67 @@ def add_book_to_wishlist(request):
         "message": "Book added to wishlist",
         "wishlistItemId": wishlist_item.id
     }, status=201)
+
+
+def get_cart_items(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    items = CartItem.objects.filter(user_id=userId)
+
+    data = [
+        {
+            "book": item.book.title,
+            "quantity": item.quantity,
+            "price": float(item.book.price) if item.book.price else 0
+        }
+        for item in items
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+def get_cart_subtotal(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    items = CartItem.objects.filter(user_id=userId)
+
+    subtotal = sum(
+        (item.book.price or 0) * item.quantity
+        for item in items
+    )
+
+    return JsonResponse({"subtotal": float(subtotal)})
+
+
+@csrf_exempt
+def remove_from_cart(request):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE only"}, status=405)
+
+    data = json.loads(request.body or "{}")
+
+    user_id = data.get("userId")
+    book_id = data.get("bookId")
+
+    if not user_id or not book_id:
+        return JsonResponse({"error": "userId and bookId required"}, status=400)
+
+    CartItem.objects.filter(user_id=user_id, book_id=book_id).delete()
+
+    return JsonResponse({"message": "Item removed"})
+
+from django.http import JsonResponse
+from .models import CartItem
+
+def get_cart_subtotal(request, userId):
+    items = CartItem.objects.filter(user_id=userId)
+
+    subtotal = 0
+
+    for item in items:
+        if item.book.price:
+            subtotal += item.book.price * item.quantity
+
+    return JsonResponse({"subtotal": float(subtotal)})
