@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 # from .models import Wishlist, User, Book, CartItem
 # from .models import Comment, Rating
-from .models import Wishlist, User, Book, CartItem, Comment, Rating, WishlistItem
+from .models import Wishlist, User, Book, CartItem, Comment, Rating, WishlistItem,Author
 
 @csrf_exempt
 def create_wishlist(request):
@@ -152,22 +152,43 @@ def add_book(request):
     genre = data.get("genre")
     price = data.get("price")
     publisher = data.get("publisher")
+    description = data.get("description")
+    year_published = data.get("year_published")
+    copies_sold = data.get("copies_sold", 0)
+    author_id = data.get("authorId")
 
-    if not isbn or not title or not genre or not publisher:
-        return JsonResponse(
-            {"error": "need isbn title genre publisher"},
-            status=400
+    if not isbn or not title or not genre or price is None or not publisher:
+        return JsonResponse({
+            "error": "isbn, title, genre, price, and publisher are required"
+        }, status=400)
+
+    author = None
+    if author_id is not None:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            return JsonResponse({"error": "Author not found"}, status=404)
+
+    try:
+        book = Book.objects.create(
+            isbn=isbn,
+            title=title,
+            genre=genre,
+            price=price,
+            publisher=publisher,
+            description=description,
+            year_published=year_published,
+            copies_sold=copies_sold,
+            author=author
         )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
 
-    book = Book.objects.create(
-        isbn=isbn,
-        title=title,
-        genre=genre,
-        price=price,
-        publisher=publisher
-    )
-
-    return JsonResponse({"success": True, "id": book.id}, status=201)
+    return JsonResponse({
+        "success": True,
+        "id": book.id,
+        "message": "Book created successfully"
+    }, status=201)
 
 @csrf_exempt
 def top_sellers(request):
@@ -186,6 +207,94 @@ def top_sellers(request):
             "copies_sold": b.copies_sold,
         }
         for b in books
+    ]
+
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+def create_author(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
+    biography = data.get("biography")
+    publisher = data.get("publisher")
+
+    if not first_name or not last_name or not biography or not publisher:
+        return JsonResponse({
+            "error": "first_name, last_name, biography, and publisher are required"
+        }, status=400)
+
+    author = Author.objects.create(
+        first_name=first_name,
+        last_name=last_name,
+        biography=biography,
+        publisher=publisher
+    )
+
+    return JsonResponse({
+        "success": True,
+        "authorId": author.id,
+        "message": "Author created successfully"
+    }, status=201)
+
+
+def get_book_by_isbn(request, isbn):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return JsonResponse({"error": "Book not found"}, status=404)
+
+    return JsonResponse({
+        "id": book.id,
+        "isbn": book.isbn,
+        "title": book.title,
+        "genre": book.genre,
+        "price": float(book.price) if book.price is not None else None,
+        "publisher": book.publisher,
+        "description": book.description,
+        "year_published": book.year_published,
+        "copies_sold": book.copies_sold,
+        "author": {
+            "id": book.author.id,
+            "first_name": book.author.first_name,
+            "last_name": book.author.last_name
+        } if book.author else None
+    })
+
+
+def get_books_by_author(request, author_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    try:
+        author = Author.objects.get(id=author_id)
+    except Author.DoesNotExist:
+        return JsonResponse({"error": "Author not found"}, status=404)
+
+    books = Book.objects.filter(author=author)
+
+    data = [
+        {
+            "id": book.id,
+            "isbn": book.isbn,
+            "title": book.title,
+            "genre": book.genre,
+            "price": float(book.price) if book.price is not None else None,
+            "publisher": book.publisher,
+            "year_published": book.year_published,
+            "copies_sold": book.copies_sold
+        }
+        for book in books
     ]
 
     return JsonResponse(data, safe=False)
