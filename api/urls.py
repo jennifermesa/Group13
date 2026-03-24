@@ -23,5 +23,8 @@ urlpatterns = [
     path('cart/<int:userId>/items/', views.get_cart_items),
     path('cart/<int:userId>/subtotal/', views.get_cart_subtotal),
     path('cart/remove/', views.remove_from_cart),
+    path('books/isbn/<str:isbn>/', get_book_by_isbn),
+    path('authors/create/', create_author),
+    path('authors/<int:authorId>/books/', get_books_by_author),
 ]
 
