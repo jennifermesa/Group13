@@ -26,6 +26,12 @@ def create_wishlist(request):
     except User.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
 
+    if Wishlist.objects.filter(user=user).count() >= 3:
+        return JsonResponse({"error": "A user can only have 3 wishlists"}, status=400)
+
+    if Wishlist.objects.filter(user=user, name=name).exists():
+        return JsonResponse({"error": "Wishlist name must be unique for this user"}, status=400)
+
     wishlist = Wishlist.objects.create(user=user, name=name)
 
     return JsonResponse(
@@ -476,23 +482,11 @@ def add_rating(request):
     if rating_value < 1 or rating_value > 5:
         return JsonResponse({"error": "rating must be between 1 and 5"}, status=400)
 
-def add_credit_card(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST only"}, status=405)
-
-    data = json.loads(request.body or "{}")
-
-    user_id = data.get("userId")
-    card_number = data.get("cardNumber")
-    expiry_date = data.get("expiryDate")
-    cvv = data.get("cvv")
-
-    if not user_id or not card_number or not expiry_date or not cvv:
-        return JsonResponse({"error": "All fields are required"}, status=400)
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
+
     try:
         book = Book.objects.get(id=book_id)
     except Book.DoesNotExist:
@@ -522,8 +516,29 @@ def add_credit_card(request):
         "updated_average_rating": book.rating
     }, status=201)
 
-    # Here you would normally save the credit card info securely
-    # For this example, we'll just return a success message
+
+@csrf_exempt
+def add_credit_card(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    user_id = data.get("userId")
+    card_number = data.get("cardNumber")
+    expiry_date = data.get("expiryDate")
+    cvv = data.get("cvv")
+
+    if not user_id or not card_number or not expiry_date or not cvv:
+        return JsonResponse({"error": "All fields are required"}, status=400)
+
+    try:
+        User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
 
     return JsonResponse({"message": "Credit card added successfully"}, status=201)
 
@@ -592,6 +607,83 @@ def get_cart_subtotal(request, userId):
 
     return JsonResponse({"subtotal": float(subtotal)})
 
+def get_wishlist_items(request, wishlistId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    try:
+        wishlist = Wishlist.objects.get(id=wishlistId)
+    except Wishlist.DoesNotExist:
+        return JsonResponse({"error": "Wishlist not found"}, status=404)
+
+    items = WishlistItem.objects.filter(wishlist=wishlist)
+
+    data = [
+        {
+            "wishlistItemId": item.id,
+            "bookId": item.book.id,
+            "isbn": item.book.isbn,
+            "title": item.book.title,
+            "genre": item.book.genre,
+            "price": float(item.book.price) if item.book.price is not None else None,
+            "publisher": item.book.publisher
+        }
+        for item in items
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def move_wishlist_item_to_cart(request, wishlistId):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE only"}, status=405)
+
+    try:
+        wishlist = Wishlist.objects.get(id=wishlistId)
+    except Wishlist.DoesNotExist:
+        return JsonResponse({"error": "Wishlist not found"}, status=404)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    book_id = data.get("bookId")
+    quantity = data.get("quantity", 1)
+
+    if not book_id:
+        return JsonResponse({"error": "bookId is required"}, status=400)
+
+    try:
+        book = Book.objects.get(id=book_id)
+    except Book.DoesNotExist:
+        return JsonResponse({"error": "Book not found"}, status=404)
+
+    wishlist_item = WishlistItem.objects.filter(wishlist=wishlist, book=book).first()
+    if not wishlist_item:
+        return JsonResponse({"error": "Book is not in this wishlist"}, status=404)
+
+    cart_item = CartItem.objects.filter(user=wishlist.user, book=book).first()
+    if cart_item:
+        cart_item.quantity += int(quantity)
+        cart_item.save()
+    else:
+        cart_item = CartItem.objects.create(
+            user=wishlist.user,
+            book=book,
+            quantity=int(quantity)
+        )
+
+    wishlist_item.delete()
+
+    return JsonResponse({
+        "message": "Book moved from wishlist to cart",
+        "cartItemId": cart_item.id,
+        "userId": wishlist.user.id,
+        "bookId": book.id
+    })
+
 
 @csrf_exempt
 def remove_from_cart(request):
@@ -610,16 +702,3 @@ def remove_from_cart(request):
 
     return JsonResponse({"message": "Item removed"})
 
-from django.http import JsonResponse
-from .models import CartItem
-
-def get_cart_subtotal(request, userId):
-    items = CartItem.objects.filter(user_id=userId)
-
-    subtotal = 0
-
-    for item in items:
-        if item.book.price:
-            subtotal += item.book.price * item.quantity
-
-    return JsonResponse({"subtotal": float(subtotal)})
