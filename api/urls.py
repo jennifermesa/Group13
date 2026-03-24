@@ -3,6 +3,7 @@ from . import views
 from .views import create_wishlist
 
 urlpatterns = [
+    urlpatterns = [
     path("wishlist/create/", create_wishlist),
     path("wishlist/add-book/", views.add_book_to_wishlist, name="add_book_to_wishlist"),
     path('users/create/', views.create_user, name='create_user'),
@@ -10,6 +11,9 @@ urlpatterns = [
     path('users/<str:username>/', views.get_user_by_username, name='get_user_by_username'),
     path('cart/add/', views.add_to_cart, name='add_to_cart'),
     path('books/create/', views.add_book, name='add_book'),
+    path("authors/create/", views.create_author, name="create_author"),
+    path("books/isbn/<str:isbn>/", views.get_book_by_isbn, name="get_book_by_isbn"),
+    path("authors/<int:author_id>/books/", views.get_books_by_author, name="get_books_by_author"),
     path("books/top-sellers/", views.top_sellers, name="top_sellers"),
     path("books/rating/<str:minRating>/", views.books_by_rating, name="books_by_rating"),
     path("books/discount/", views.discount_books, name="discount_books"),
@@ -21,7 +25,7 @@ urlpatterns = [
     path('cart/<int:userId>/items/', views.get_cart_items),
     path('cart/<int:userId>/subtotal/', views.get_cart_subtotal),
     path('cart/remove/', views.remove_from_cart),
-    path('cart/<int:userId>/subtotal/', views.get_cart_subtotal),
+]
 
 ]
 
