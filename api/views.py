@@ -87,17 +87,31 @@ def add_book(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
 
-    data = json.loads(request.body or "{}")
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     isbn = data.get("isbn")
     title = data.get("title")
     genre = data.get("genre")
     price = data.get("price")
+    publisher = data.get("publisher")
 
-    if not isbn or not title or not genre:
-        return JsonResponse({"error": "need isbn title genre"}, status=400)
+    if not isbn or not title or not genre or not publisher:
+        return JsonResponse(
+            {"error": "need isbn title genre publisher"},
+            status=400
+        )
 
-    book = Book.objects.create(isbn=isbn, title=title, genre=genre, price=price)
+    book = Book.objects.create(
+        isbn=isbn,
+        title=title,
+        genre=genre,
+        price=price,
+        publisher=publisher
+    )
+
     return JsonResponse({"success": True, "id": book.id}, status=201)
 
 @csrf_exempt
@@ -273,6 +287,64 @@ def get_average_rating(request, book_id):
         "number_of_ratings": ratings.count()
     })
 
+@csrf_exempt
+def add_rating(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    user_id = data.get("userId")
+    book_id = data.get("bookId")
+    rating_value = data.get("rating")
+
+    if user_id is None or book_id is None or rating_value is None:
+        return JsonResponse({"error": "userId, bookId, and rating required"}, status=400)
+
+    try:
+        rating_value = int(rating_value)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "rating must be an integer"}, status=400)
+
+    if rating_value < 1 or rating_value > 5:
+        return JsonResponse({"error": "rating must be between 1 and 5"}, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    try:
+        book = Book.objects.get(id=book_id)
+    except Book.DoesNotExist:
+        return JsonResponse({"error": "Book not found"}, status=404)
+
+    existing_rating = Rating.objects.filter(user=user, book=book).first()
+    if existing_rating:
+        return JsonResponse({"error": "User already rated this book"}, status=400)
+
+    new_rating = Rating.objects.create(
+        user=user,
+        book=book,
+        rating=rating_value
+    )
+
+    ratings = Rating.objects.filter(book=book)
+    avg = sum(r.rating for r in ratings) / ratings.count()
+    book.rating = round(avg, 2)
+    book.save()
+
+    return JsonResponse({
+        "message": "Rating added",
+        "ratingId": new_rating.id,
+        "bookId": book.id,
+        "userId": user.id,
+        "rating": new_rating.rating,
+        "updated_average_rating": book.rating
+    }, status=201)
 
 @csrf_exempt
 def add_book_to_wishlist(request):

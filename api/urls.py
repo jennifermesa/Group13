@@ -14,4 +14,6 @@ urlpatterns = [
     path("comments/create/", views.create_comment, name="create_comment"),
     path("books/<int:book_id>/comments/", views.get_book_comments, name="get_book_comments"),
     path("books/<int:book_id>/average-rating/", views.get_average_rating, name="average_rating"),
+    path("ratings/add/", views.add_rating, name="add_rating"),
 ]
+
