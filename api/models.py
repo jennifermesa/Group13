@@ -28,7 +28,7 @@ class Book(models.Model):
     
     description = models.TextField(null=True, blank=True)
     year_published = models.IntegerField(null=True, blank=True)
-    author = models.ForeignKey(Author, on_delete=models.CASCADE, null=True, related_name="books")
+    author = models.ForeignKey('Author', on_delete=models.CASCADE, null=True, related_name="books")
 
     def __str__(self):
         return self.title

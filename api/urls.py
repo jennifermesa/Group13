@@ -6,6 +6,8 @@ urlpatterns = [
     path("wishlist/create/", create_wishlist),
     path("wishlist/add-book/", views.add_book_to_wishlist, name="add_book_to_wishlist"),
     path('users/create/', views.create_user, name='create_user'),
+    path('users/credit-card/', views.add_credit_card, name='add_credit_card'),
+    path('users/<str:username>/', views.get_user_by_username, name='get_user_by_username'),
     path('cart/add/', views.add_to_cart, name='add_to_cart'),
     path('books/create/', views.add_book, name='add_book'),
     path("books/top-sellers/", views.top_sellers, name="top_sellers"),

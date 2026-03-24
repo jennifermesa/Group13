@@ -43,6 +43,20 @@ def create_user(request):
     )
     return JsonResponse({'success': True, 'id': user.id})
 
+def get_user_by_username(request, username):
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    return JsonResponse({
+        "id": user.id,
+        "username": user.username,
+    })
+
 def get_user(request, user_id):
     if request.method != "GET":
         return JsonResponse({"error": "Invalid method"}, status=405)
@@ -314,6 +328,7 @@ def get_average_rating(request, book_id):
         "number_of_ratings": ratings.count()
     })
 
+@csrf_exempt
 def add_credit_card(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
