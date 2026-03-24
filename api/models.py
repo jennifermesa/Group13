@@ -25,10 +25,22 @@ class Book(models.Model):
     publisher = models.CharField(max_length=255)
     copies_sold = models.IntegerField(default=0)
     rating = models.FloatField(default=0)
+    
+    description = models.TextField(null=True, blank=True)
+    year_published = models.IntegerField(null=True, blank=True)
+    author = models.ForeignKey('Author', on_delete=models.CASCADE, null=True, related_name="books")
 
     def __str__(self):
         return self.title
 
+class Author(models.Model):
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    biography = models.TextField()
+    publisher = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
 
 class CartItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

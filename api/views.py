@@ -43,6 +43,61 @@ def create_user(request):
     )
     return JsonResponse({'success': True, 'id': user.id})
 
+def get_user_by_username(request, username):
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    return JsonResponse({
+        "id": user.id,
+        "username": user.username,
+    })
+
+def get_user(request, user_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    return JsonResponse({
+        "id": user.id,
+        "username": user.username,
+        # "email": user.email
+    })
+
+def update_user(request, user_id):
+    if request.method != "PATCH":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    data = json.loads(request.body or "{}")
+
+    username = data.get("username")
+    password = data.get("password")
+    # email = data.get("email")
+
+    if username:
+        user.username = username
+    if password:
+        user.password = password
+    # if email:
+    #     user.email = email
+
+    user.save()
+
+    return JsonResponse({"success": True})
+
 def books_by_genre(request, genre):
     if request.method != "GET":
         return JsonResponse({"error": "Invalid method"}, status=405)
@@ -312,11 +367,23 @@ def add_rating(request):
     if rating_value < 1 or rating_value > 5:
         return JsonResponse({"error": "rating must be between 1 and 5"}, status=400)
 
+def add_credit_card(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    data = json.loads(request.body or "{}")
+
+    user_id = data.get("userId")
+    card_number = data.get("cardNumber")
+    expiry_date = data.get("expiryDate")
+    cvv = data.get("cvv")
+
+    if not user_id or not card_number or not expiry_date or not cvv:
+        return JsonResponse({"error": "All fields are required"}, status=400)
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
-
     try:
         book = Book.objects.get(id=book_id)
     except Book.DoesNotExist:
@@ -345,6 +412,11 @@ def add_rating(request):
         "rating": new_rating.rating,
         "updated_average_rating": book.rating
     }, status=201)
+
+    # Here you would normally save the credit card info securely
+    # For this example, we'll just return a success message
+
+    return JsonResponse({"message": "Credit card added successfully"}, status=201)
 
 @csrf_exempt
 def add_book_to_wishlist(request):
@@ -378,3 +450,67 @@ def add_book_to_wishlist(request):
         "message": "Book added to wishlist",
         "wishlistItemId": wishlist_item.id
     }, status=201)
+
+
+def get_cart_items(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    items = CartItem.objects.filter(user_id=userId)
+
+    data = [
+        {
+            "book": item.book.title,
+            "quantity": item.quantity,
+            "price": float(item.book.price) if item.book.price else 0
+        }
+        for item in items
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+def get_cart_subtotal(request, userId):
+    if request.method != "GET":
+        return JsonResponse({"error": "GET only"}, status=405)
+
+    items = CartItem.objects.filter(user_id=userId)
+
+    subtotal = sum(
+        (item.book.price or 0) * item.quantity
+        for item in items
+    )
+
+    return JsonResponse({"subtotal": float(subtotal)})
+
+
+@csrf_exempt
+def remove_from_cart(request):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE only"}, status=405)
+
+    data = json.loads(request.body or "{}")
+
+    user_id = data.get("userId")
+    book_id = data.get("bookId")
+
+    if not user_id or not book_id:
+        return JsonResponse({"error": "userId and bookId required"}, status=400)
+
+    CartItem.objects.filter(user_id=user_id, book_id=book_id).delete()
+
+    return JsonResponse({"message": "Item removed"})
+
+from django.http import JsonResponse
+from .models import CartItem
+
+def get_cart_subtotal(request, userId):
+    items = CartItem.objects.filter(user_id=userId)
+
+    subtotal = 0
+
+    for item in items:
+        if item.book.price:
+            subtotal += item.book.price * item.quantity
+
+    return JsonResponse({"subtotal": float(subtotal)})
