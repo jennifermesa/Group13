@@ -56,6 +56,9 @@ class Rating(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="ratings")
     rating = models.IntegerField()
 
+    class Meta:
+        unique_together = ("user", "book")
+
     def __str__(self):
         return f"{self.user_id} rated {self.book_id}"
 
