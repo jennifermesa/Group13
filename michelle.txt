@@ -1,0 +1,2 @@
+Feature: Wish list management
+Contributor: Michelle
