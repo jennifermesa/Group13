@@ -10,6 +10,7 @@ urlpatterns = [
     path("wishlist/<int:wishlistId>/move-to-cart/", views.move_wishlist_item_to_cart, name="move_wishlist_item_to_cart"),
     path('users/create/', views.create_user, name='create_user'),
     path('users/credit-card/', views.add_credit_card, name='add_credit_card'),
+    path('users/id/<int:user_id>/', views.get_user, name='get_user'),
     path('users/<str:username>/', views.get_user_by_username, name='get_user_by_username'),
     path('cart/add/', views.add_to_cart, name='add_to_cart'),
     path('books/create/', views.add_book, name='add_book'),

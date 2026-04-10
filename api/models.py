@@ -1,12 +1,24 @@
 from django.db import models
 
 class User(models.Model):
+    name = models.CharField(max_length=100, blank=True, default="")
     username = models.CharField(max_length=50, unique=True)
     password = models.CharField(max_length=128)
-    
+    email = models.EmailField(unique=True, null=True, blank=True)
+    home_address = models.TextField(blank=True, default="")
 
     def __str__(self):
         return self.username
+
+
+class CreditCard(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="credit_cards")
+    card_number = models.CharField(max_length=16)
+    expiry_date = models.CharField(max_length=7)
+    cvv = models.CharField(max_length=4)
+
+    def __str__(self):
+        return f"Card ending {self.card_number[-4:]} for {self.user.username}"
 
 
 class Wishlist(models.Model):

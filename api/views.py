@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 # from .models import Wishlist, User, Book, CartItem
 # from .models import Comment, Rating
-from .models import Wishlist, User, Book, CartItem, Comment, Rating, WishlistItem,Author
+from .models import Wishlist, User, Book, CartItem, Comment, Rating, WishlistItem, Author, CreditCard
 
 @csrf_exempt
 def create_wishlist(request):
@@ -39,16 +39,35 @@ def create_wishlist(request):
         status=201
     )
 
+# Carlos Melicandia Request 1
 @csrf_exempt
 def create_user(request):
-    data = json.loads(request.body)
-    user = User.objects.create(
-        username=data['username'],
-        password=data['password'],
-        # email=data['email']
-    )
-    return JsonResponse({'success': True, 'id': user.id})
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
 
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        return JsonResponse({"error": "username and password are required"}, status=400)
+
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({"error": "Username already taken"}, status=400)
+
+    user = User.objects.create(
+        name=data.get("name", ""),
+        username=username,
+        password=password,
+        email=data.get("email"),
+        home_address=data.get("homeAddress", ""),
+    )
+    return JsonResponse({"success": True, "id": user.id}, status=201)
+
+# Carlos Melicandia Request 2
 def get_user_by_username(request, username):
     if request.method != "GET":
         return JsonResponse({"error": "Invalid method"}, status=405)
@@ -60,9 +79,13 @@ def get_user_by_username(request, username):
 
     return JsonResponse({
         "id": user.id,
+        "name": user.name,
         "username": user.username,
+        "email": user.email,
+        "homeAddress": user.home_address,
     })
 
+# Carlos Melicandia Request 3
 def get_user(request, user_id):
     if request.method != "GET":
         return JsonResponse({"error": "Invalid method"}, status=405)
@@ -74,8 +97,10 @@ def get_user(request, user_id):
 
     return JsonResponse({
         "id": user.id,
+        "name": user.name,
         "username": user.username,
-        # "email": user.email
+        "email": user.email,
+        "homeAddress": user.home_address,
     })
 
 def update_user(request, user_id):
@@ -516,7 +541,7 @@ def add_rating(request):
         "updated_average_rating": book.rating
     }, status=201)
 
-
+# Carlos Melicandia Request 4
 @csrf_exempt
 def add_credit_card(request):
     if request.method != "POST":
@@ -536,11 +561,23 @@ def add_credit_card(request):
         return JsonResponse({"error": "All fields are required"}, status=400)
 
     try:
-        User.objects.get(id=user_id)
+        user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
 
-    return JsonResponse({"message": "Credit card added successfully"}, status=201)
+    card = CreditCard.objects.create(
+        user=user,
+        card_number=card_number,
+        expiry_date=expiry_date,
+        cvv=cvv,
+    )
+
+    return JsonResponse({
+        "message": "Credit card added successfully",
+        "cardId": card.id,
+        "userId": user.id,
+        "cardNumber": f"****{card_number[-4:]}",
+    }, status=201)
 
 @csrf_exempt
 def add_book_to_wishlist(request):
